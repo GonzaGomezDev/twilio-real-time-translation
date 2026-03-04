@@ -1,139 +1,139 @@
-#  Live Voice Translation with Twilio & OpenAI Realtime
-This application demonstrates how to use Twilio and OpenAI's Realtime API for bidirectional
-voice language translation between a caller and a contact center agent.
+#  Traducción de voz en tiempo real con Twilio y OpenAI Realtime
+Esta aplicación demuestra cómo usar Twilio y la API Realtime de OpenAI para la
+traducción bidireccional de voz entre una persona que llama y un agente de centro de contacto.
 
-The AI Assistant intercepts voice audio from one party, translates it, and speaks the audio in the other party's
-preferred language. Use of the Realtime API from OpenAI offers significantly reduced latency that is conducive
-to a natural two-way voice conversation.
+El asistente de IA intercepta el audio de voz de una de las partes, lo traduce y reproduce el audio en el idioma
+preferido de la otra parte. El uso de la API Realtime de OpenAI ofrece una latencia significativamente menor,
+lo que favorece una conversación de voz bidireccional natural.
 
-See [here](https://www.loom.com/share/71498319660943638e1ef2c9928bcd2a) for a video demo of the real time translation app in action.
+Consulta [aquí](https://www.loom.com/share/71498319660943638e1ef2c9928bcd2a) una demo en video de la app de traducción en tiempo real en funcionamiento.
 
-Below is a high level architecture diagram of how this application works:
+A continuación se muestra un diagrama de arquitectura de alto nivel de cómo funciona esta aplicación:
 ![Realtime Translation Diagram](/live-translation-readme-images/realtime-voice-translation-app.jpeg)
 
-This application uses the following Twilio products in conjuction with OpenAI's Realtime API, orchestrated by this middleware application:
+Esta aplicación utiliza los siguientes productos de Twilio en conjunto con la API Realtime de OpenAI, orquestados por esta aplicación de middleware:
 - Voice
 - Studio
 - Flex
 - Task Router
 
-Two separate Voice calls are initiated, proxied by this middleware service. The caller is asked to choose their preferred language, then the conversation
-is queued for the next available agent in Twilio Flex. Once connected to the agent, this middleware intercepts the audio from both parties via
-[Media Streams](https://www.twilio.com/docs/voice/media-streams) and forwards to OpenAI Realtime for translation. The translated audio
-is then forwarded to the other party.
+Se inician dos llamadas de Voice independientes, gestionadas por este servicio de middleware. Se le solicita a quien llama elegir su idioma preferido y luego la conversación
+se encola para el siguiente agente disponible en Twilio Flex. Una vez conectada con el agente, este middleware intercepta el audio de ambas partes mediante
+[Media Streams](https://www.twilio.com/docs/voice/media-streams) y lo reenvía a OpenAI Realtime para su traducción. El audio traducido
+se reenvía después a la otra parte.
 
-## Prerequisites
-To get up and running, you will need:
-1. A Twilio Flex Account ([create](https://console.twilio.com/user/unified-account/details))
-2. An OpenAI Account ([sign up](https://platform.openai.com/signup/)) and [API Key](https://platform.openai.com/api-keys)
-3. A second Twilio phone number ([instructions](https://help.twilio.com/articles/223135247-How-to-Search-for-and-Buy-a-Twilio-Phone-Number-from-Console))
-4. Node v20.10.0 or higher ([install](https://nodejs.org/en/download/package-manager))
-5. Ngrok ([sign up](https://dashboard.ngrok.com/signup) and [download](https://ngrok.com/download))
+## Requisitos previos
+Para ponerlo en marcha, necesitarás:
+1. Una cuenta de Twilio Flex ([crear](https://console.twilio.com/user/unified-account/details))
+2. Una cuenta de OpenAI ([registrarse](https://platform.openai.com/signup/)) y una [API Key](https://platform.openai.com/api-keys)
+3. Un segundo número de teléfono de Twilio ([instrucciones](https://help.twilio.com/articles/223135247-How-to-Search-for-and-Buy-a-Twilio-Phone-Number-from-Console))
+4. Node v20.10.0 o superior ([instalar](https://nodejs.org/en/download/package-manager))
+5. Ngrok ([registrarse](https://dashboard.ngrok.com/signup) y [descargar](https://ngrok.com/download))
 
-## Local Setup
+## Configuración local
 
-There are 3 required steps to get the app up-and-running locally for development and testing:
-1. Open an ngrok tunnel
-2. Configure middleware app
-3. Twilio setup
+Hay 3 pasos obligatorios para levantar la app localmente para desarrollo y pruebas:
+1. Abrir un túnel de ngrok
+2. Configurar la app de middleware
+3. Configurar Twilio
 
-### Open ngrok tunnel
-When developing & testing locally, you'll need to open an ngrok tunnel that forwards requests to your local development server.
-This ngrok tunnel is used for the Twilio Media Streams that forward call audio to/from this application.
+### Abrir un túnel de ngrok
+Al desarrollar y probar localmente, necesitarás abrir un túnel de ngrok que reenvíe solicitudes a tu servidor local de desarrollo.
+Este túnel de ngrok se usa para los Media Streams de Twilio que envían audio de llamada hacia/desde esta aplicación.
 
-To spin up an ngrok tunnel, open a Terminal and run:
+Para iniciar un túnel de ngrok, abre una terminal y ejecuta:
 ```
 ngrok http 5050
 ```
-Once the tunnel has been initiated, copy the `Forwarding` URL. It will look something like: `https://[your-ngrok-subdomain].ngrok.app`. You will
-need this when configuring environment variables for the middleware in the next section.
+Una vez iniciado el túnel, copia la URL de `Forwarding`. Se verá algo así: `https://[your-ngrok-subdomain].ngrok.app`. La
+necesitarás al configurar las variables de entorno del middleware en la siguiente sección.
 
-Note that the `ngrok` command above forwards to a development server running on port `5050`, which is the default port configured in this application. If
-you override the `API_PORT` environment variable covered in the next section, you will need to update the `ngrok` command accordingly.
+Ten en cuenta que el comando `ngrok` anterior redirige a un servidor de desarrollo que corre en el puerto `5050`, que es el puerto predeterminado configurado en esta aplicación. Si
+sobrescribes la variable de entorno `API_PORT` cubierta en la siguiente sección, deberás actualizar el comando `ngrok` en consecuencia.
 
-Keep in mind that each time you run the `ngrok http` command, a new URL will be created, and you'll need to update it everywhere it is referenced below.
+Recuerda que cada vez que ejecutes `ngrok http`, se creará una URL nueva y tendrás que actualizarla en todos los lugares donde se referencia abajo.
 
-### Configure middleware app locally
-1) Clone this repository
-2) Run `npm install` to install dependencies
-3) Run `cp .env.sample .env` to create your local environment variables file
+### Configurar la app de middleware localmente
+1) Clona este repositorio
+2) Ejecuta `npm install` para instalar dependencias
+3) Ejecuta `cp .env.sample .env` para crear tu archivo local de variables de entorno
 
-Once created, open `.env` in your code editor. You are required to set the following environment variables for the app to function properly:
-| Variable Name     | Description                                      | Example Value          |
+Una vez creado, abre `.env` en tu editor de código. Debes configurar las siguientes variables de entorno para que la app funcione correctamente:
+| Nombre de variable     | Descripción                                      | Valor de ejemplo          |
 |-------------------|--------------------------------------------------|------------------------|
-| `NGROK_DOMAIN` | The forwarding URL of your ngrok tunnel initiated above | `[your-ngrok-subdomain].ngrok.app` |
-| `TWILIO_ACCOUNT_SID` | Your Twilio Account SID, which can be found in the Twilio Console. | `ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
-| `TWILIO_AUTH_TOKEN`  | Your Twilio Auth Token, which is also found in the Twilio Console.  | `your_auth_token_here`  |
-| `TWILIO_CALLER_NUMBER`   | The additional Twilio phone number you purchased, **not** connected to Flex. Used for the caller-facing "leg" of the call. | `+18331234567` |
-| `TWILIO_FLEX_NUMBER`   | The phone number automatically purchased when provisioning your Flex account. Used for the agent-facing "leg" of the call. | `+14151234567` |
-| `TWILIO_FLEX_WORKFLOW_SID` | The Taskrouter Workflow SID, which is automatically provisioned with your Flex account. Used to enqueue inbound call with Flex agents. To find this, in the Twilio Console go to TaskRouter > Workspaces > Flex Task Assignment > Workflows  |`WWXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`|
-| `OPENAI_API_KEY`              | Your OpenAI API Key             | `your_api_key_here`                 |
+| `NGROK_DOMAIN` | La URL de reenvío de tu túnel de ngrok iniciado arriba | `[your-ngrok-subdomain].ngrok.app` |
+| `TWILIO_ACCOUNT_SID` | Tu Account SID de Twilio, que puedes encontrar en la consola de Twilio. | `ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` |
+| `TWILIO_AUTH_TOKEN`  | Tu Auth Token de Twilio, que también se encuentra en la consola de Twilio.  | `your_auth_token_here`  |
+| `TWILIO_CALLER_NUMBER`   | El número adicional de Twilio que compraste, **no** conectado a Flex. Se usa para el "tramo" de llamada del lado de quien llama. | `+18331234567` |
+| `TWILIO_FLEX_NUMBER`   | El número de teléfono comprado automáticamente al aprovisionar tu cuenta Flex. Se usa para el "tramo" de llamada del lado del agente. | `+14151234567` |
+| `TWILIO_FLEX_WORKFLOW_SID` | El Workflow SID de TaskRouter, aprovisionado automáticamente con tu cuenta Flex. Se usa para encolar llamadas entrantes con agentes de Flex. Para encontrarlo, en la consola de Twilio ve a TaskRouter > Workspaces > Flex Task Assignment > Workflows  |`WWXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`|
+| `OPENAI_API_KEY`              | Tu API Key de OpenAI             | `your_api_key_here`                 |
 
-Below are optional environment variables that have default values that can be overridden:
-| Variable Name     | Description                                      | Default Value          |
+A continuación, variables de entorno opcionales con valores predeterminados que se pueden sobrescribir:
+| Nombre de variable     | Descripción                                      | Valor predeterminado          |
 |-------------------|--------------------------------------------------|------------------------|
-| `FORWARD_AUDIO_BEFORE_TRANSLATION` | Set to `true` to enable forwarding the original spoken audio between callers. For instance, if Caller is speaking Spanish, this would play the original Spanish audio for the Agent before the translated audio is played. This setting is useful in production contexts to minimize perceived silences. Not recommended for development mode where one person will be simultaneously playing the role of the caller and the agent.     | `false`                 |
-| `API_PORT`        | The port your local server runs on.             | `5050`                 |
+| `FORWARD_AUDIO_BEFORE_TRANSLATION` | Pon `true` para habilitar el reenvío del audio hablado original entre participantes. Por ejemplo, si quien llama habla español, esto reproducirá el audio original en español para el agente antes de reproducir el audio traducido. Esta opción es útil en contextos de producción para minimizar silencios percibidos. No se recomienda en modo desarrollo cuando una sola persona está simulando simultáneamente a quien llama y al agente.     | `false`                 |
+| `API_PORT`        | El puerto en el que se ejecuta tu servidor local.             | `5050`                 |
 
-### Twilio setup
+### Configuración de Twilio
 
-#### Import Studio Flow
-You'll need to import the included Studio flow in the [inbound_language_studio_flow.json](inbound_language_studio_flow.json) file into your Twilio Account, then configure the caller-facing Twilio phone number to use this Flow. This Studio Flow will handle the initial inbound call, and present the caller with a basic IVR to select their preferred language to use in the conversation with the agent.
+#### Importar Studio Flow
+Debes importar el Studio Flow incluido en el archivo [inbound_language_studio_flow.json](inbound_language_studio_flow.json) en tu cuenta de Twilio, y luego configurar el número de teléfono de Twilio orientado a quien llama para que use este Flow. Este Studio Flow manejará la llamada entrante inicial y presentará una IVR básica para que quien llama seleccione su idioma preferido para conversar con el agente.
 
-In the Twilio Console, go to the [Studio Flows](https://console.twilio.com/us1/develop/studio/flows?frameUrl=%2Fconsole%2Fstudio%2Fflows%3Fx-target-region%3Dus1) page and click **Create New Flow**. Give your Flow a name, like "Inbound Translation IVR", click Next, then select the option to **Import from JSON** and click Next.
+En la consola de Twilio, ve a [Studio Flows](https://console.twilio.com/us1/develop/studio/flows?frameUrl=%2Fconsole%2Fstudio%2Fflows%3Fx-target-region%3Dus1) y haz clic en **Create New Flow**. Asigna un nombre al Flow, por ejemplo "Inbound Translation IVR", haz clic en Next, luego selecciona la opción **Import from JSON** y haz clic en Next.
 
-Copy the contents of [inbound_language_studio_flow.json](inbound_language_studio_flow.json) and paste it into the textbox. Search for `[your-ngrok-subdomain]` and replace with your assigned ngrok tunnel subdomain. Click **Next** to import the Studio Flow, then **Publish**. 
+Copia el contenido de [inbound_language_studio_flow.json](inbound_language_studio_flow.json) y pégalo en el cuadro de texto. Busca `[your-ngrok-subdomain]` y reemplázalo por el subdominio de tu túnel ngrok. Haz clic en **Next** para importar el Studio Flow y luego en **Publish**. 
 
-The included Studio Flow will play a prerecorded message for the caller asking them to select their preferred language as either:
-1. English
-2. Spanish
-3. French
-4. Mandarin
+El Studio Flow incluido reproducirá un mensaje pregrabado para quien llama solicitando seleccionar su idioma preferido:
+1. Inglés
+2. Español
+3. Francés
+4. Mandarín
 5. Hindi
 
-You can update the Studio Flow logic to change the languages you'd like to support. See [here](https://platform.openai.com/docs/guides/text-to-speech/supported-languages) for more information on OpenAI's supported language options. 
+Puedes actualizar la lógica del Studio Flow para cambiar los idiomas que deseas soportar. Consulta [aquí](https://platform.openai.com/docs/guides/text-to-speech/supported-languages) para más información sobre los idiomas compatibles de OpenAI. 
 
-#### Point Caller Phone Number to Studio Flow
-Once your Studio Flow is imported and published, the next step is to point your inbound / caller-facing phone number (`TWILIO_CALLER_NUMBER`) to your Studio Flow. In the Twilio Console, go to **Phone Numbers** > **Manage** > **Active Numbers** and click on the additional phone number you purchased (**not** the one auto-provisioned by Flex).
+#### Apuntar el número de quien llama al Studio Flow
+Una vez importado y publicado tu Studio Flow, el siguiente paso es apuntar tu número entrante / del lado de quien llama (`TWILIO_CALLER_NUMBER`) a tu Studio Flow. En la consola de Twilio, ve a **Phone Numbers** > **Manage** > **Active Numbers** y haz clic en el número adicional que compraste (**no** el aprovisionado automáticamente por Flex).
 
-In your Phone Number configuration settings, update the first **A call comes in** dropdown to **Studio Flow**, select the name of the Flow you created above, and click **Save configuration**.
+En la configuración del número, cambia el primer desplegable **A call comes in** a **Studio Flow**, selecciona el nombre del Flow creado arriba y haz clic en **Save configuration**.
 ![Point Caller Phone Number to Studio Flow](/live-translation-readme-images/inbound-voice-number-webhook.png)
 
-#### Point Agent Phone Number and TaskRouter Workspace to Middleware
-The last step is to point the agent-facing phone number (`TWILIO_FLEX_NUMBER`) and the TaskRouter "Flex Task Assignment" Workspace to this middleware app. This is needed to connect the conversation to a contact center agent in Flex.
+#### Apuntar el número del agente y el Workspace de TaskRouter al middleware
+El último paso es apuntar el número del lado del agente (`TWILIO_FLEX_NUMBER`) y el Workspace "Flex Task Assignment" de TaskRouter a esta app de middleware. Esto es necesario para conectar la conversación con un agente de centro de contacto en Flex.
 
-In the Twilio Console, go to **Phone Numbers** > **Manage** > **Active Numbers** and click on Flex phone number that was auto-provisioned. In your Phone Number configuration settings, update the first **A call comes in** dropdown to **Webhook** and set the URL to `https://[your-ngrok-subdomain].ngrok.app/outbound-call`, ensure **HTTP** is set to **HTTP POST**, and click **Save configuration**.
+En la consola de Twilio, ve a **Phone Numbers** > **Manage** > **Active Numbers** y haz clic en el número de Flex aprovisionado automáticamente. En la configuración del número, cambia el primer desplegable **A call comes in** a **Webhook** y establece la URL como `https://[your-ngrok-subdomain].ngrok.app/outbound-call`, asegúrate de que **HTTP** esté en **HTTP POST**, y haz clic en **Save configuration**.
 ![Point Agent Phone Number to Middleware]/live-translation-readme-images(/flex-voice-number-webhook.png)
 
-Ensure that you replace `[your-ngrok-subdomain]` with your assigned ngrok tunnel subdomain.
+Asegúrate de reemplazar `[your-ngrok-subdomain]` por el subdominio asignado de tu túnel ngrok.
 
-Then, go to **TaskRouter** > **Workspaces** > **Flex Task Assignment** > **Settings**, and set the **Event callback URL** to `https://[your-ngrok-subdomain].ngrok.app/reservation-accepted`, again replacing `[your-ngrok-subdomain]` with your assigned ngrok tunnel subdomain.
+Luego, ve a **TaskRouter** > **Workspaces** > **Flex Task Assignment** > **Settings**, y configura **Event callback URL** como `https://[your-ngrok-subdomain].ngrok.app/reservation-accepted`, nuevamente reemplazando `[your-ngrok-subdomain]` por el subdominio asignado de tu túnel ngrok.
 
 ![Point TaskRouter Workspace to Middleware](/live-translation-readme-images/task-router-event-callback-url.png)
 
-Finally, under **Select events**, check the checkbox for **Reservation Accepted**.
+Finalmente, en **Select events**, marca la casilla **Reservation Accepted**.
 
 ![Select events > Reservation Accepted](/live-translation-readme-images/task-router-reservation-accepted.png)
 
-### Run the app
-Once dependencies are installed, `.env` is set up, and Twilio is configured properly, run the dev server with the following command:
+### Ejecutar la app
+Una vez instaladas las dependencias, configurado `.env` y Twilio correctamente, ejecuta el servidor de desarrollo con el siguiente comando:
 ```
 npm run dev
 ```
-### Testing the app
-With the development server running, you may now begin to test the translation app. If you are wanting to test the app by yourself, simulating both the agent and the caller, we recommend setting `FORWARD_AUDIO_BEFORE_TRANSLATION` to `false` so you're not hearing duplicative audio.
+### Probar la app
+Con el servidor de desarrollo en ejecución, ya puedes comenzar a probar la app de traducción. Si quieres probarla por tu cuenta, simulando tanto al agente como a quien llama, recomendamos configurar `FORWARD_AUDIO_BEFORE_TRANSLATION` en `false` para no escuchar audio duplicado.
 
-To answer the call as the agent, you'll need log into the Flex Agent Desktop. The easiest way to do this is go to the [Flex Overview](https://console.twilio.com/us1/develop/flex/overview) page and click **Log in with Console**. Once the Agent Desktop is loaded, be sure that your Agent status is set to **Available** by toggling the dropdown in top-right corner of the window. This ensures enqueued tasks will be routed to you.
+Para responder la llamada como agente, debes iniciar sesión en Flex Agent Desktop. La forma más sencilla es ir a [Flex Overview](https://console.twilio.com/us1/develop/flex/overview) y hacer clic en **Log in with Console**. Una vez cargado Agent Desktop, asegúrate de que tu estado de agente esté en **Available** usando el desplegable en la esquina superior derecha de la ventana. Esto garantiza que las tareas encoladas se enruten hacia ti.
 
-With your mobile phone, dial the `TWILIO_CALLER_NUMBER` and make a call (Do **not** dial the `TWILIO_FLEX_NUMBER`). You should hear a prompt to select your desired language, and then be connected to Flex. On the Flex Agent Desktop, once a language preference is selected, you should see the call appear as assigned to you. Use Flex to answer the call.
+Con tu teléfono móvil, marca `TWILIO_CALLER_NUMBER` y realiza una llamada (No marques `TWILIO_FLEX_NUMBER`). Deberías escuchar una indicación para seleccionar tu idioma deseado y luego conectarte con Flex. En Flex Agent Desktop, una vez seleccionado el idioma, deberías ver la llamada asignada a ti. Usa Flex para responder la llamada.
 
-Once connected, you should now be able to speak on one end of the call, and hear the OpenAI translated audio delivered to the other end of the call (and vice-versa). By default, the Agent's language is set to English. The Realtime API will translate audio from the chosen caller language to English, and the agent's English speech to the chosen caller language.
+Una vez conectados, ya deberías poder hablar en un extremo de la llamada y escuchar el audio traducido por OpenAI en el otro extremo (y viceversa). Por defecto, el idioma del agente está configurado en inglés. La API Realtime traducirá audio desde el idioma elegido por quien llama hacia inglés, y el habla en inglés del agente hacia el idioma elegido por quien llama.
 
-## OpenAI Realtime API Settings
-### Updating Model Instructions
-You can update the instructions used to prompt the OpenAI Realtime API in [`src/prompts.ts`](/src/prompts.ts). Note that there are two separate connections to the Realtime API, one for the caller, and one for the agent. This allows for more precision and flexibility in the way the translator behaves for both sides of the call. Note that `[CALLER_LANGUAGE]` is dynamically inserted into the prompt based on the caller's language selection during the initial Studio IVR. The default behavior assumes the agent speaks English.
+## Configuración de la API Realtime de OpenAI
+### Actualizar instrucciones del modelo
+Puedes actualizar las instrucciones usadas para prompting de la API Realtime de OpenAI en [`src/prompts.ts`](/src/prompts.ts). Ten en cuenta que hay dos conexiones separadas a la API Realtime: una para quien llama y otra para el agente. Esto permite mayor precisión y flexibilidad en el comportamiento del traductor para ambos lados de la llamada. Observa que `[CALLER_LANGUAGE]` se inserta dinámicamente en el prompt según la selección de idioma de quien llama durante la IVR inicial de Studio. El comportamiento predeterminado asume que el agente habla inglés.
 
-To change the prompt for the caller, update `AI_PROMPT_CALLER`. For the agent, update `AI_PROMPT_AGENT`. The default instructions used for translation are below:
+Para cambiar el prompt de quien llama, actualiza `AI_PROMPT_CALLER`. Para el agente, actualiza `AI_PROMPT_AGENT`. A continuación se muestran las instrucciones predeterminadas usadas para traducción:
 
 **Caller**
 ```
@@ -164,64 +164,4 @@ Assistant: ¿Cuantos días hay en la semana?
 User: I have two brothers and one sister in my family.
 Assistant: Tengo dos hermanos y una hermana en mi familia.
 `;
-
 ```
-## Sequence Diagram
-
-The eventual flow of the application is as follows. 
-- In this diagram, `Voice/Studio` has colloquially been used to represent the Twilio Voice and Studio.
-- The `Agent` represents the human agent who will be connected to the call via Twilio Flex.
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant Voice/Studio
-    participant BMV
-    participant S2S
-    actor Agent
-
-    Customer ->> Voice/Studio: Initiates Call
-    Voice/Studio -->> Customer: <Say>Welcome to Be My Voice.<br>Your call will be transferred to an AI Assistant.<br>What language would you like to use?</Say><br><Gather ...>
-    Customer -->> Voice/Studio: (Customer selects language)
-    
-    Voice/Studio ->> +BMV: [HTTP] POST /incoming-call
-    BMV -->> -Voice/Studio: <Say>...</Say><br><Connect><Stream ... /></Connect>
-    Voice/Studio -->> Customer: <Say>Please wait while we connect you.</Say>
-    
-    Customer ->> +BMV: [WS] Initiate Media Stream
-    activate Customer
-    activate BMV
-    activate S2S
-    BMV ->> +S2S: [WS] Establish Websocket Connection to OpenAI
-
-    BMV ->> Voice/Studio: [HTTP] Create Call (to Agent)<br>with TwiML <Connect><Stream ... /></Connect>
-    Voice/Studio -->> Agent: Incoming Task
-    Agent ->> BMV: [WS] Establish Websocket Connection
-    activate Agent
-    Agent ->>+ BMV: [HTTP] Accept Task
-    BMV -->>- Agent: Ok 200
-    note right of BMV: BMV is now intercepting both <br>Agent and Customer Media Stream
-    note right of BMV: For every Media that comes, stream the data to S2S<br>and stream the response back to Agent/Customer
-    note right of BMV: For example, it may look something like
-    
-    loop A conversation loop
-    Customer ->> BMV: [WS] (Speaks in their language)
-    BMV ->> S2S: [WS] Stream audio in original language
-    S2S -->> BMV: [WS] Audio stream in English
-    BMV ->> Agent: [WS] Steam audio to Agent in English
-    Agent -->> BMV: [WS] (Replies in English)
-    BMV ->> S2S: [WS] Stream audio in English language
-    S2S -->> BMV: [WS] Audio stream in original language
-    BMV ->> Customer: [WS] Stream audio to Customer in original language
-    end 
-
-
-    note right of BMV: At some point, the conversation over<br>and the Customer hangs up
-    BMV -->> Customer: [WS] Close
-    deactivate Customer
-
-    BMV -->> S2S: [WS] Close
-    deactivate S2S
-    BMV -->> Agent: [WS] Close
-    deactivate BMV
-    deactivate Agent
